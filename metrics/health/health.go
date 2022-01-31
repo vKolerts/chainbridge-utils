@@ -11,8 +11,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/ChainSafe/chainbridge-utils/core"
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/vKolerts/chainbridge-utils/core"
+	"github.com/vKolerts/chainbridge-utils/msg"
 	log "github.com/ChainSafe/log15"
 )
 
