@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	// "log"
 
 	"github.com/vKolerts/chainbridge-utils/msg"
 )
@@ -42,6 +43,7 @@ func NewBlockstore(path string, chain msg.ChainId, relayer string) (*Blockstore,
 		if err != nil {
 			return nil, err
 		}
+
 		path = def
 	}
 
@@ -65,29 +67,54 @@ func (b *Blockstore) StoreBlock(block *big.Int) error {
 
 	// Write bytes to file
 	data := []byte(block.String())
-	err := ioutil.WriteFile(b.fullPath, data, 0600)
+	err := ioutil.WriteFile(b.fullPath + ".tmp", data, 0600)
 	if err != nil {
 		return err
 	}
+
+	b.TryLoadLatestBlock(b.fullPath + ".tmp")
+
+	e := os.Rename(b.fullPath + ".tmp", b.fullPath)
+	if e != nil {
+		return e;
+	}
+
 	return nil
 }
 
 // TryLoadLatestBlock will attempt to load the latest block for the chain/relayer pair, returning 0 if not found.
 // Passing an empty string for path will cause it to use the home directory.
-func (b *Blockstore) TryLoadLatestBlock() (*big.Int, error) {
+func (b *Blockstore) TryLoadLatestBlock(argPath ...string) (*big.Int, error) {
 	// If it exists, load and return
-	exists, err := fileExists(b.fullPath)
+	fullPath:= b.fullPath
+	if len(argPath) > 0 {
+		fullPath = argPath[0]
+	}
+
+	exists, err := fileExists(fullPath)
 	if err != nil {
 		return nil, err
 	}
+
 	if exists {
-		dat, err := ioutil.ReadFile(b.fullPath)
+		dat, err := ioutil.ReadFile(fullPath)
 		if err != nil {
 			return nil, err
 		}
-		block, _ := big.NewInt(0).SetString(string(dat), 10)
+
+		if string(dat) == "" {
+			return nil, fmt.Errorf("Empty blockstore, %s", fullPath)
+		}
+
+		block, ok := big.NewInt(0).SetString(string(dat), 10)
+		if !ok {
+			return nil, fmt.Errorf("Can't parse blockstore, %s :'%s'", fullPath, string(dat))
+		}
+
+		// log.Printf("Blockstore, %s :'%s'", fullPath, string(dat))
 		return block, nil
 	}
+
 	// Otherwise just return 0
 	return big.NewInt(0), nil
 }
@@ -113,5 +140,6 @@ func fileExists(fileName string) (bool, error) {
 	} else if err != nil {
 		return false, err
 	}
+
 	return true, nil
 }
